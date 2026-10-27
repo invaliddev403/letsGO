@@ -10,6 +10,7 @@
 ## Features
 
 - Detects the latest version of Go.
+- Detects x86_64/amd64, ARM64 (aarch64/arm64), and 32-bit ARM (armv6l/armv7l/armv8l) and downloads the matching Linux build. Unsupported architectures stop with an error.
 - Installs Go if not present.
 - Updates Go to the latest version if an older version is installed
 - Adds Go to the system PATH.
@@ -37,7 +38,7 @@
 
 1. Checks for for required packages (jq, curl, wget) if not present it will install them.
 2. Fetches the latest Go version information.
-3. Checks if Go is installed and compares the version.
+3. Checks if Go is installed and compares its version and architecture.
 4. Downloads and installs the latest Go version if necessary.
 5. Creates a symbolic link for the Go executable.
 6. Adds Go to the PATH in the user's .profile file.

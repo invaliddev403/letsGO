@@ -24,6 +24,28 @@ print_ascii_art() {
 }
 
 
+# Select the Go archive for the host architecture before making system changes.
+SYSTEM_ARCH=$(uname -m)
+case "$SYSTEM_ARCH" in
+    x86_64|amd64)
+        GO_ARCH=amd64
+        GO_ARCHIVE_ARCH=amd64
+        ;;
+    aarch64|arm64)
+        GO_ARCH=arm64
+        GO_ARCHIVE_ARCH=arm64
+        ;;
+    armv6l|armv7l|armv8l)
+        GO_ARCH=arm
+        GO_ARCHIVE_ARCH=armv6l
+        ;;
+    *)
+        echo -e "${red}[✗] Unsupported system architecture: $SYSTEM_ARCH ${reset}"
+        exit 1
+        ;;
+esac
+echo -e "${green}[✓] Detected architecture: $SYSTEM_ARCH (Go: $GO_ARCH) ${reset}"
+
 # Check for sudo privileges
 if ! sudo -v &> /dev/null; then
     echo -e "${red}[✗] This script requires sudo privileges. Please run as 'sudo ./letsGO.sh' ${reset}"
@@ -66,12 +88,16 @@ HOME_DIR=$(eval echo ~$CURRENT_USER)
 
 # Check to see whats the latest version of GO
 GO_VERSION=$(curl -s https://go.dev/dl/?mode=json | jq -r '.[0].version')
+GO_ARCHIVE="${GO_VERSION}.linux-${GO_ARCHIVE_ARCH}.tar.gz"
 
 # Check if Go is already installed and up-to-date
 current_version=""
+current_platform=""
 if command -v go >/dev/null 2>&1; then
-    current_version=$(go version | awk '{print $3}')
-    if [ "$current_version" = "$GO_VERSION" ]; then
+    current_go=$(go version 2>/dev/null) || current_go=""
+    current_version=$(awk '{print $3}' <<< "$current_go")
+    current_platform=$(awk '{print $4}' <<< "$current_go")
+    if [ "$current_version" = "$GO_VERSION" ] && [ "$current_platform" = "linux/$GO_ARCH" ]; then
         echo -e "${green}[✓] Go latest version: $GO_VERSION is already installed 🎉 ${reset}"
     else
         echo -e "${yellow}[yikes bro] Updating Go from version: $current_version to version: $GO_VERSION ${reset}"
@@ -81,22 +107,22 @@ else
 fi
 
 # If Go is not installed or needs updating, proceed with installation
-if [ "$current_version" != "$GO_VERSION" ]; then
+if [ "$current_version" != "$GO_VERSION" ] || [ "$current_platform" != "linux/$GO_ARCH" ]; then
     echo -e "${green}[✓] Downloading and installing Go-lang version: $GO_VERSION ${reset}"
-    if ! wget -q https://go.dev/dl/"${GO_VERSION}".linux-amd64.tar.gz; then
+    if ! wget -q "https://go.dev/dl/$GO_ARCHIVE"; then
         echo -e "${red}[✗] Failed to download Go-lang version: $GO_VERSION ${reset}"
         exit 1
     fi
-    if ! sudo tar -C /usr/local -xzf "${GO_VERSION}".linux-amd64.tar.gz > /dev/null 2>&1; then
+    if ! sudo tar -C /usr/local -xzf "$GO_ARCHIVE" > /dev/null 2>&1; then
         echo -e "${red}[✗] Failed to extract Go-lang version: $GO_VERSION ${reset}"
-        rm "${GO_VERSION}".linux-amd64.tar.gz
+        rm "$GO_ARCHIVE"
         exit 1
     fi
     if ! sudo ln -sf /usr/local/go/bin/go /usr/bin/go; then
         echo -e "${red}[✗] Failed to create symbolic link for Go ${reset}"
         exit 1
     fi
-    rm "${GO_VERSION}".linux-amd64.tar.gz
+    rm "$GO_ARCHIVE"
     echo -e "${green}[✓] Go-lang successfully installed. ${reset}"
 else
     echo -e "${green}[✓] Go is already installed and up-to-date. ${reset}"
